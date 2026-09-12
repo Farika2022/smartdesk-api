@@ -1,9 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SmartDesk.Api.Models;
 
 public class Ticket
 {
     public int Id {get; set;}
     public required string Customer {get; set;}
+
+    [EmailAddress]
     public required string Email {get; set;}
     public required string Subject {get; set;}
 

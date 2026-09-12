@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -71,18 +72,12 @@ public class AuthController: ControllerBase
         );
          return new JwtSecurityTokenHandler().WriteToken(token);
     }
-    // TEMPORARY — delete after getting the hash
-[HttpGet("hash")]
-public IActionResult GetHash()
-{
-    var hash = BCrypt.Net.BCrypt.HashPassword("password123");
-    return Ok(new { hash });
-}
 }
 
 // Defines exactly what the login endpoint accepts.
 public class LoginRequest
 {
+    [EmailAddress]
     public required string Email { get; set; }
     public required string Password { get; set; }
 }

@@ -3,6 +3,7 @@ using SmartDesk.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using SmartDesk.Api.Data;
 using Microsoft.AspNetCore.Authorization;
+using SmartDesk.Api.Services;
 
 namespace SmartDesk.Api.Controllers;
 
@@ -23,13 +24,17 @@ public class TicketsController : ControllerBase
      // _context is the database connection.
     // readonly = it is set once in the constructor and never changed.
     private readonly SmartDeskContext _context;
+    private readonly ITicketClassifierService _classifier;
+    private readonly ILogger<TicketsController> _logger;
 
    // .NET automatically passes SmartDeskContext here.
    // This is dependency injection — never create _context manually.
    // .NET creates it, manages the connection, and disposes it after the request.
-   public TicketsController(SmartDeskContext context)
+   public TicketsController(SmartDeskContext context, ITicketClassifierService classifier, ILogger<TicketsController> logger)
    {
     _context = context;
+    _classifier = classifier;
+    _logger = logger;
    }
 
 
@@ -75,6 +80,23 @@ public async Task<IActionResult> GetById (int id)
          // This is the server-side validation layer.
          // React validates first (client-side). .NET validates again (server-side).
          if (!ModelState.IsValid) return BadRequest (ModelState);
+
+         // Best-effort AI classification. Claude enriches the ticket's urgency when it
+         // works; any failure (missing/invalid key, network error, timeout, bad response)
+         // is caught here and the ticket is still created with its default urgency.
+         try
+         {
+             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+             var classification = await _classifier.ClassifyAsync(ticket.Customer, ticket.Subject, cts.Token);
+             if (classification != null)
+             {
+                 ticket.Urgency = classification.Urgency;
+             }
+         }
+         catch (Exception ex)
+         {
+             _logger.LogWarning(ex, "Claude classification failed for ticket from {Customer}; using default urgency", ticket.Customer);
+         }
 
          // The server controls these to prevent manipulation.
          //  ticket.Id= _nextId++;

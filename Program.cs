@@ -3,7 +3,9 @@
  using Microsoft.EntityFrameworkCore;
  using Microsoft.AspNetCore.Authentication.JwtBearer;
  using Microsoft.IdentityModel.Tokens;
+ using System.Net.Http.Headers;
  using System.Text;
+ using SmartDesk.Api.Services;
 // WebApplication.CreateBuilder => sets up everything .NET needs to run:
 // dependency injection, configuration, logging.
 // builder = the setup phase. app = the running phase.
@@ -42,14 +44,34 @@ builder.Services.AddDbContext<SmartDeskContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
-// CORS => React runs on localhost:5173. .NET runs on localhost:5056.
-// Browsers block requests between different ports by default.
-// CORS tells the browser: it is safe to allow React to call this API.
+// GROQ_API_KEY is read from the process environment ( a free key )
+// If it's missing, the HttpClient is still built —
+// requests just come back unauthorized, which TicketClassifierService catches and
+// treats like any other classification failure.
+var groqApiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY");
+builder.Services.AddHttpClient<ITicketClassifierService, TicketClassifierService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    if (!string.IsNullOrEmpty(groqApiKey))
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", groqApiKey);
+    }
+});
+
+// CORS => the browser blocks requests between different origins by default.
+// CORS tells the browser: it is safe to allow the frontend to call this API.
+// ALLOWED_ORIGINS is a comma-separated list (e.g. the deployed Vercel URL in
+// production); it always includes the local Vite dev server so local dev keeps working.
+var allowedOrigins = new[] { "http://localhost:5173" }
+    .Concat((Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    .Distinct()
+    .ToArray();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
