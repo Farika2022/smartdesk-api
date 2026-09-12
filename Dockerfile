@@ -10,4 +10,5 @@ WORKDIR /app
 COPY --from=build /app/publish .
 ARG PORT=8080
 ENV ASPNETCORE_URLS=http://+:${PORT}
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "SmartDesk.Api.dll"]
