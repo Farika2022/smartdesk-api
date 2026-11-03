@@ -14,8 +14,16 @@ public class Ticket
      // If the request does not include status, it defaults to "open".
      public string Status {get; set;}="open";
 
-     // Claude API will update this. Until then, default is MEDIUM.
-     public string Urgency {get; set;}="MEDIUM";
+     public const string Unclassified = "UNCLASSIFIED";
+     public static readonly string[] ValidUrgencies = ["LOW", "MEDIUM", "HIGH"];
+
+     // Set by the AI classifier. Stays UNCLASSIFIED if classification fails,
+     // so staff can see the ticket still needs a human to triage it.
+     public string Urgency {get; set;}=Unclassified;
+
+     // Filled in by the AI classifier. Null if classification failed.
+     public string? Category {get; set;}
+     public string? SuggestedReply {get; set;}
 
      public DateTime CreatedAt {get; set;}= DateTime.UtcNow;
 

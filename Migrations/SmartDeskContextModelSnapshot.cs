@@ -30,6 +30,9 @@ namespace SmartDesk.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Category")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -47,6 +50,9 @@ namespace SmartDesk.Api.Migrations
 
                     b.Property<string>("Subject")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SuggestedReply")
                         .HasColumnType("text");
 
                     b.Property<string>("Urgency")
