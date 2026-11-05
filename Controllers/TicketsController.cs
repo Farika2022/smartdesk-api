@@ -81,21 +81,31 @@ public async Task<IActionResult> GetById (int id)
          // React validates first (client-side). .NET validates again (server-side).
          if (!ModelState.IsValid) return BadRequest (ModelState);
 
-         // Best-effort AI classification. Claude enriches the ticket's urgency when it
-         // works; any failure (missing/invalid key, network error, timeout, bad response)
-         // is caught here and the ticket is still created with its default urgency.
+         // The server owns these fields — ignore whatever the client sent.
+         // A ticket starts UNCLASSIFIED so a failed AI call is visible to staff
+         // instead of silently ranking a possible safety issue as MEDIUM.
+         ticket.Urgency = Ticket.Unclassified;
+         ticket.Category = null;
+         ticket.SuggestedReply = null;
+         ticket.Status = "open";
+
+         // Best-effort AI classification. Any failure (missing/invalid key, network
+         // error, timeout, bad response) is caught here and the ticket is still
+         // created as UNCLASSIFIED for staff to triage by hand.
          try
          {
              using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
              var classification = await _classifier.ClassifyAsync(ticket.Customer, ticket.Subject, cts.Token);
-             if (classification != null)
+             if (classification != null && Ticket.ValidUrgencies.Contains(classification.Urgency))
              {
                  ticket.Urgency = classification.Urgency;
+                 ticket.Category = classification.Category;
+                 ticket.SuggestedReply = classification.SuggestedReply;
              }
          }
          catch (Exception ex)
          {
-             _logger.LogWarning(ex, "Claude classification failed for ticket from {Customer}; using default urgency", ticket.Customer);
+             _logger.LogWarning(ex, "AI classification failed for ticket from {Customer}; leaving it UNCLASSIFIED", ticket.Customer);
          }
 
          // The server controls these to prevent manipulation.
@@ -120,6 +130,7 @@ public async Task<IActionResult> GetById (int id)
         if (ticket==null) return NotFound();
 
         ticket.Status=request.Status;
+        await _context.SaveChangesAsync();
         return Ok(ticket);
      }
 
