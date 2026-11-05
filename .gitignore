@@ -1,3 +1,14 @@
 .env
 .env.local
 .env.*.local
+# .NET build outputs
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# macOS
+.DS_Store
